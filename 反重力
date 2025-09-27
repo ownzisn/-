@@ -1,0 +1,147 @@
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+_G.processedParts = {}
+
+RunService.Heartbeat:Connect(function()
+    sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
+end)
+
+_G.fzlz = 0
+_G.fzly = 0
+_G.fzlx = 0
+
+local function isCharacterPart(part)
+    local currentParent = part.Parent
+    while currentParent do
+        if Players:GetPlayerFromCharacter(currentParent) then
+            return true
+        end
+        currentParent = currentParent.Parent
+    end
+    return false
+end
+
+local function Parts(v)
+    if v:IsA("Part") and not v.Anchored and not isCharacterPart(v) then
+        if _G.processedParts[v] then
+            local existingBV = _G.processedParts[v].bodyVelocity
+            if existingBV and existingBV.Parent then
+                if existingBV.Velocity ~= Vector3.new(_G.fzlz, _G.fzly, _G.fzlx) then
+                    existingBV.Velocity = Vector3.new(_G.fzlz, _G.fzly, _G.fzlx)
+                end
+                return
+            else
+                _G.processedParts[v] = nil
+            end
+        end
+        
+        for _, x in next, v:GetChildren() do
+            if x:IsA("BodyAngularVelocity") or x:IsA("BodyForce") or x:IsA("BodyGyro") or x:IsA("BodyPosition") or x:IsA("BodyThrust") or x:IsA("BodyVelocity") then
+                x:Destroy()
+            end
+        end
+
+        if v:FindFirstChild("Torque") then
+            v:FindFirstChild("Torque"):Destroy()
+        end
+        
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Parent = v
+        bodyVelocity.Velocity = Vector3.new(_G.fzlz, _G.fzly, _G.fzlx)
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        _G.processedParts[v] = {
+            bodyVelocity = bodyVelocity
+        }
+    end
+end
+
+local anActivity = false
+local function kqan()
+    if anActivity then
+        for _, v in next, Workspace:GetDescendants() do
+            Parts(v)
+        end
+    end
+end
+
+Workspace.DescendantAdded:Connect(function(v)
+    if anActivity then
+        Parts(v)
+    end
+end)
+
+local function cleanupParts()
+    for _, data in pairs(_G.processedParts) do
+        data.bodyVelocity:Destroy()
+    end
+    _G.processedParts = {}
+end
+
+local function handleCharacterRespawn(character)
+    if anActivity then
+        kqan()
+    end
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BodyVelocity") then
+            part:Destroy()
+        end
+    end
+end
+
+if LocalPlayer.Character then
+    handleCharacterRespawn(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(handleCharacterRespawn)
+
+local function button()
+    local screenGui = Instance.new("ScreenGui")
+    local button = Instance.new("TextButton")
+    screenGui.Name = "fzl"
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    button.Active = true
+    button.Draggable = true
+    button.Name = "fzl"
+    button.Size = UDim2.new(0, 110, 0, 40)
+    button.Position = UDim2.new(0.5, -35, 0, 50)
+    button.Text = "反重力状态: 关"
+    button.TextSize = 15
+    button.BackgroundColor3 = Color3.fromRGB(33, 255, 255)
+    button.TextColor3 = Color3.fromRGB(255, 0, 0)
+    button.Parent = screenGui
+
+    button.MouseButton1Click:Connect(function()
+        anActivity = not anActivity
+        kqan()
+        if anActivity then
+            local scriptUrls = {
+                "https://pastebin.com/raw/1E24D5x3",
+                "https://pastebin.com/raw/e1eeF5MX",
+                "https://pastebin.com/raw/x6bq2iXT",
+                "https://pastebin.com/raw/S905jkfP",
+                "https://pastebin.com/raw/xTfJ1a0R"
+            }
+            for _, url in ipairs(scriptUrls) do
+                local success, errorMsg = pcall(function()
+                    loadstring(game:HttpGet(url))()
+                end)
+                if not success then
+                    warn("外部脚本加载失败（URL：" .. url .. "）：" .. tostring(errorMsg))
+                end
+            end
+            button.Text = "反重力状态: 开"
+        else
+            cleanupParts()
+            button.Text = "反重力状态: 关"
+            local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+            for _, uiContainer in ipairs(PlayerGui:GetChildren()) do
+                if uiContainer.Name == "HoldToActivateUI" then
+                    uiContainer:Destroy()
+                end
+            end
+        end
+    end)
+end
+
+button()
